@@ -2,177 +2,406 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>飞象跨屏助手</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>飞象跨屏助手 - 教室端</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+SC:wght@400;700;900&display=swap" rel="stylesheet">
     <style>
         :root {
             --primary: #0071fd;
-            --success: #07c160;
-            --bg: #f5f7fa;
-            --card-bg: #ffffff;
-            --text: #333333;
+            --primary-dark: #005bb5;
+            --accent: #00c6ff;
+            --bg-gradient: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            --glass: rgba(255, 255, 255, 0.92);
+            --shadow-lg: 0 20px 50px rgba(0,0,0,0.1);
+            --shadow-card: 0 10px 30px rgba(0,0,0,0.05);
+            --text-main: #1d1d1f;
+            --text-sub: #86868b;
         }
+
+        * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         
         body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-            background: var(--bg);
+            font-family: 'Noto Sans SC', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg-gradient);
             margin: 0;
             height: 100vh;
-            display: flex;
-            justify-content: center;
-            align-items: center;
             overflow: hidden;
-        }
-
-        /* 主容器 */
-        .app-container {
-            width: 100%;
-            max-width: 480px;
-            height: 90vh;
-            max-height: 800px;
-            background: var(--card-bg);
-            border-radius: 24px;
-            box-shadow: 0 20px 60px rgba(0,0,0,0.1);
             display: flex;
             flex-direction: column;
-            overflow: hidden;
-            transition: all 0.3s ease;
+            user-select: none; /* 防止长按选中文本，优化触控体验 */
         }
 
-        /* 顶部栏 */
-        header {
-            padding: 20px;
-            text-align: center;
-            border-bottom: 1px solid #eee;
+        /* 顶部导航栏 */
+        .navbar {
+            height: 80px;
+            padding: 0 40px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
             background: rgba(255,255,255,0.9);
-            backdrop-filter: blur(10px);
+            backdrop-filter: blur(20px);
+            box-shadow: 0 4px 20px rgba(0,0,0,0.05);
+            z-index: 100;
+            flex-shrink: 0;
         }
-        h1 { margin: 0; font-size: 18px; color: var(--text); display: flex; align-items: center; justify-content: center; gap: 8px; }
-        .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #ccc; transition: background 0.3s; }
-        .status-text { font-size: 12px; color: #999; margin-top: 4px; }
 
-        /* 内容区 */
-        main {
+        .logo-area {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        
+        .logo-img {
+            height: 40px;
+            object-fit: contain;
+        }
+        
+        .app-title {
+            font-size: 24px;
+            font-weight: 900;
+            background: linear-gradient(90deg, #0071fd, #00c6ff);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: 1px;
+        }
+
+        .status-badge {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 16px;
+            background: #f0f2f5;
+            border-radius: 30px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            transition: all 0.3s;
+        }
+        .status-dot { width: 10px; height: 10px; border-radius: 50%; background: #ccc; box-shadow: 0 0 0 2px rgba(255,255,255,0.5); }
+        .status-badge.connected { background: rgba(7, 193, 96, 0.1); color: #07c160; }
+        .status-badge.connected .status-dot { background: #07c160; box-shadow: 0 0 0 2px rgba(7, 193, 96, 0.3); animation: pulse 2s infinite; }
+
+        /* 主体布局 Grid */
+        .main-layout {
             flex: 1;
-            padding: 20px;
+            display: grid;
+            grid-template-columns: 380px 1fr; /* 左侧加宽，更适合触摸 */
+            gap: 30px;
+            padding: 30px;
+            max-width: 1920px;
+            margin: 0 auto;
+            width: 100%;
+            height: calc(100vh - 80px); /* 减去顶部高度 */
+        }
+
+        /* 左侧边栏：控制区 */
+        .sidebar {
+            background: var(--glass);
+            border-radius: 24px;
+            padding: 30px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+            box-shadow: var(--shadow-lg);
+            backdrop-filter: blur(20px);
+            border: 1px solid rgba(255,255,255,0.5);
+            height: 100%;
             overflow-y: auto;
+        }
+
+        .qr-container {
+            background: white;
+            padding: 15px;
+            border-radius: 20px;
+            box-shadow: var(--shadow-card);
+            margin-bottom: 20px;
+            position: relative;
+            overflow: hidden;
+            width: 100%;
+            max-width: 280px;
+            /* 居中二维码 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            aspect-ratio: 1/1;
+        }
+        
+        /* 适配 qrcode.js 生成的 canvas/img */
+        .qr-container img, .qr-container canvas { 
+            width: 100% !important; 
+            height: auto !important; 
+            display: block; 
+            opacity: 0.5; 
+            transition: opacity 0.5s; 
+        }
+
+        .instruction { margin-top: 10px; width: 100%; }
+        .instruction h3 { margin: 0 0 10px 0; color: var(--text-main); font-size: 22px; }
+        .instruction p { margin: 0; color: var(--text-sub); font-size: 16px; line-height: 1.6; }
+
+        .action-area {
+            margin-top: auto;
+            width: 100%;
+            padding-top: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        /* 大屏专用按钮：更大、更有质感 */
+        .big-btn {
+            width: 100%;
+            height: 70px; /* 加高 */
+            border: none;
+            border-radius: 18px;
+            background: var(--primary);
+            color: white;
+            font-size: 20px;
+            font-weight: 700;
+            cursor: pointer;
+            box-shadow: 0 10px 20px rgba(0, 113, 253, 0.3);
+            transition: all 0.1s; /* 快速响应 */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            position: relative;
+            overflow: hidden;
+        }
+        /* 按压效果 */
+        .big-btn:active { transform: scale(0.96); background: var(--primary-dark); }
+        .big-btn.copied { background: #07c160; box-shadow: 0 10px 20px rgba(7, 193, 96, 0.3); }
+
+        .secondary-btn {
+            background: transparent;
+            color: #999;
+            font-size: 16px;
+            padding: 15px;
+            border: 2px dashed #ddd;
+            border-radius: 16px;
+            cursor: pointer;
+        }
+        .secondary-btn:active { background: #f0f0f0; border-color: #bbb; color: #666; }
+
+        /* 右侧：消息瀑布流 */
+        .content-area {
             display: flex;
             flex-direction: column;
             gap: 20px;
+            height: 100%;
+            overflow: hidden;
+            position: relative;
         }
 
-        /* 二维码卡片 */
-        .qr-card {
-            background: white;
-            border-radius: 16px;
-            padding: 20px;
-            text-align: center;
-            border: 1px solid #eee;
-            transition: transform 0.3s;
-        }
-        .qr-card:hover { transform: translateY(-2px); box-shadow: 0 4px 12px rgba(0,0,0,0.05); }
-        #qr-img { width: 160px; height: 160px; margin-bottom: 10px; opacity: 0.5; transition: opacity 0.5s; }
-        .qr-tip { font-size: 14px; color: #666; }
-
-        /* 消息展示区 */
-        .message-area {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            gap: 10px;
-        }
-        .latest-msg {
-            background: #eef6ff;
-            border: 1px solid #dbeafe;
-            padding: 20px;
-            border-radius: 16px;
-            text-align: center;
-            animation: popIn 0.3s cubic-bezier(0.18, 0.89, 0.32, 1.28);
-        }
-        .msg-label { font-size: 12px; color: var(--primary); font-weight: bold; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 1px; }
-        .msg-content { font-size: 24px; font-weight: bold; color: var(--text); line-height: 1.4; word-break: break-all; }
-        
-        /* 历史记录 */
-        .history { opacity: 0.6; font-size: 14px; color: #666; padding: 10px; border-bottom: 1px solid #eee; }
-
-        /* 底部操作栏 */
-        footer {
-            padding: 20px;
-            background: white;
-            border-top: 1px solid #eee;
-        }
-        .action-btn {
-            width: 100%;
-            padding: 16px;
-            border: none;
-            border-radius: 12px;
-            background: var(--primary);
-            color: white;
+        .section-title {
             font-size: 18px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.2s;
+            font-weight: 700;
+            color: var(--text-sub);
+            margin-bottom: 5px;
             display: flex;
             align-items: center;
+            gap: 10px;
+        }
+        .section-title::before { content: ''; width: 6px; height: 24px; background: var(--primary); border-radius: 3px; }
+
+        /* 消息列表容器 */
+        #msg-container {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px; /* 增加内边距防止阴影被切 */
+            padding-bottom: 40px;
+            /* 针对触摸屏优化滚动体验 */
+            -webkit-overflow-scrolling: touch;
+        }
+        /* 隐藏滚动条，更美观，大屏直接滑 */
+        #msg-container::-webkit-scrollbar { width: 0px; background: transparent; }
+
+        /* 消息卡片组件 - 大屏触控优化版 */
+        .msg-card {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 25px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.03); /* 默认轻阴影 */
+            border: 2px solid transparent; /* 预留边框位置 */
+            position: relative;
+            transition: all 0.15s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            cursor: pointer;
+            /* 关键：整体作为触控目标 */
+        }
+        
+        /* 触摸/激活态：模拟物理按键下沉 */
+        .msg-card:active {
+            transform: scale(0.98);
+            background: #f0f7ff;
+            border-color: var(--primary);
+        }
+
+        .msg-card.latest {
+            background: #f8fbff;
+            border-color: rgba(0, 113, 253, 0.3);
+            box-shadow: 0 8px 25px rgba(0, 113, 253, 0.1);
+        }
+        /* 点击高亮动画 */
+        .msg-card.flash-active {
+            animation: flashHighlight 0.4s ease-out;
+            background: #e6f2ff !important;
+            border-color: var(--primary) !important;
+        }
+
+        .msg-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 16px;
+            opacity: 0.7;
+        }
+
+        .msg-tag {
+            font-size: 13px;
+            font-weight: 800;
+            color: var(--primary);
+            background: rgba(0, 113, 253, 0.1);
+            padding: 6px 12px;
+            border-radius: 8px;
+        }
+        
+        .msg-time { font-size: 14px; color: #999; font-family: monospace; }
+
+        .msg-body {
+            font-size: 32px; /* 更大的字号，方便远看 */
+            font-weight: 700;
+            color: var(--text-main);
+            line-height: 1.4;
+            word-break: break-all;
+        }
+
+        /* 复制提示角标 (常驻，不再hover显示) */
+        .click-hint {
+            position: absolute;
+            right: 20px;
+            bottom: 20px;
+            color: var(--primary);
+            font-size: 14px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            opacity: 0.6;
+            pointer-events: none; /* 穿透 */
+        }
+        .click-hint svg { width: 18px; height: 18px; fill: currentColor; }
+
+        /* 空状态 */
+        .empty-state {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
             justify-content: center;
-            gap: 8px;
+            color: #bbb;
+            text-align: center;
+            padding-bottom: 100px;
         }
-        .action-btn:hover { background: #0062d6; transform: scale(1.02); }
-        .action-btn:active { transform: scale(0.98); }
-        .action-btn.copied { background: var(--success); }
+        .empty-icon { font-size: 80px; margin-bottom: 20px; opacity: 0.3; }
 
-        /* 响应式调整 (分屏模式) */
-        @media (max-width: 400px) {
-            .app-container { height: 100vh; border-radius: 0; }
-            .qr-card { padding: 10px; display: flex; align-items: center; gap: 15px; text-align: left; }
-            #qr-img { width: 80px; height: 80px; margin: 0; }
-            .msg-content { font-size: 20px; }
+        /* 动画 */
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(40px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        @keyframes pulse {
+            0% { box-shadow: 0 0 0 0 rgba(7, 193, 96, 0.4); }
+            70% { box-shadow: 0 0 0 10px rgba(7, 193, 96, 0); }
+            100% { box-shadow: 0 0 0 0 rgba(7, 193, 96, 0); }
         }
 
-        @keyframes popIn {
-            from { opacity: 0; transform: scale(0.9); }
-            to { opacity: 1; transform: scale(1); }
+        @keyframes flashHighlight {
+            0% { transform: scale(0.98); background: var(--primary); color: white; }
+            50% { transform: scale(1.02); }
+            100% { transform: scale(1); background: #e6f2ff; color: inherit; }
+        }
+
+        /* 响应式适配 */
+        @media (max-width: 900px) {
+            .main-layout { grid-template-columns: 1fr; padding: 20px; display: flex; flex-direction: column; }
+            .sidebar { flex-direction: row; justify-content: space-between; padding: 20px; text-align: left; height: auto; flex-shrink: 0; }
+            .qr-container { margin: 0; width: 100px; padding: 5px; }
+            .instruction { flex: 1; margin: 0 20px; }
+            .action-area { width: auto; padding: 0; }
+            .big-btn { width: 140px; height: 60px; font-size: 16px; }
+            .content-area { margin-top: 10px; height: 100%; }
+            .msg-body { font-size: 24px; }
+            .secondary-btn { display: none; } /* 移动端隐藏清空按钮 */
         }
     </style>
 </head>
 <body>
 
-    <div class="app-container">
-        <header>
-            <h1>🚀 飞象跨屏助手 <div class="status-dot" id="dot"></div></h1>
-            <div class="status-text" id="status-text">正在连接云端服务器...</div>
-        </header>
+    <!-- 导航栏 -->
+    <nav class="navbar">
+        <div class="logo-area">
+            <img src="https://static-nginx-online.fbcontent.cn/metis-lectio-web-static/static/media/logo.8461382d13d28a3fedc1.png" alt="Logo" class="logo-img">
+            <div class="app-title">跨屏助手</div>
+        </div>
+        <div class="status-badge" id="status-badge">
+            <div class="status-dot"></div>
+            <span id="status-text">连接中...</span>
+        </div>
+    </nav>
 
-        <main>
-            <!-- 二维码区 -->
-            <div class="qr-card">
-                <img id="qr-img" src="" alt="二维码加载中">
-                <div class="qr-tip">请使用手机扫码<br>发送文字内容</div>
+    <!-- 主布局 -->
+    <div class="main-layout">
+        
+        <!-- 左侧控制面板 -->
+        <aside class="sidebar">
+            <div class="qr-container" id="qr-target">
+                <!-- 本地生成二维码 -->
             </div>
+            <div class="instruction">
+                <h3>手机扫码输入</h3>
+                <p>微信扫码 • 语音转文字</p>
+                <div style="margin-top:15px; font-size:14px; color:#999; background:#f5f7fa; padding:10px; border-radius:12px;">
+                    房间号: <span id="room-id" style="font-family:monospace; font-weight:bold; color:#333; font-size:16px;">---</span>
+                </div>
+            </div>
+            
+            <div class="action-area">
+                <button class="big-btn" id="copy-global-btn" onclick="copyLatest()">
+                    <span>📋 复制最新消息</span>
+                </button>
+                <button class="secondary-btn" onclick="clearHistory()">
+                    🗑️ 清空历史记录
+                </button>
+            </div>
+        </aside>
 
-            <!-- 消息区 -->
-            <div class="message-area" id="msg-list">
-                <!-- 动态插入消息 -->
-                <div style="text-align:center; color:#ccc; margin-top:40px;">
-                    暂无消息<br>等待手机发送...
+        <!-- 右侧消息流 -->
+        <main class="content-area">
+            <div class="section-title">实时消息流 (点击卡片复制)</div>
+            <div id="msg-container">
+                <!-- 空状态 -->
+                <div class="empty-state" id="empty-state">
+                    <div class="empty-icon">👆</div>
+                    <div style="font-size: 20px">暂无消息</div>
+                    <div style="font-size: 14px; margin-top: 10px">请扫描左侧二维码发送内容</div>
                 </div>
             </div>
         </main>
 
-        <footer>
-            <button class="action-btn" id="copy-btn" onclick="copyLatest()">
-                <span>📋 一键复制</span>
-            </button>
-        </footer>
     </div>
 
-    <!-- 提示音 -->
+    <!-- 音效 -->
     <audio id="ding-sound" src="https://static-nginx-online.fbcontent.cn/metis-lectio-web-static/static/media/btn-click.4738a7907a16787e41ca.mp3"></audio>
 
     <script>
         /* ================= 配置 ================= */
-        // ⚠️ 记得改成您真实的 mobile.html 地址
+        // ⚠️ 请确保此处是您真实的 mobile.html 部署地址
         const MOBILE_URL = "https://xiaolu-ai.github.io/wailiantalk/mobile.html";
         const MQTT_BROKER = "broker.emqx.io";
         const MQTT_PORT = 8084;
@@ -180,25 +409,38 @@
 
         const state = {
             client: null,
-            roomId: 'fx_' + Math.random().toString(36).substr(2, 6),
+            roomId: 'fx_' + Math.random().toString(36).substr(2, 6).toUpperCase(),
             lastMsg: ''
         };
 
         // UI 引用
         const els = {
-            dot: document.getElementById('dot'),
-            status: document.getElementById('status-text'),
-            qr: document.getElementById('qr-img'),
-            list: document.getElementById('msg-list'),
-            btn: document.getElementById('copy-btn'),
+            badge: document.getElementById('status-badge'),
+            statusText: document.getElementById('status-text'),
+            qrTarget: document.getElementById('qr-target'),
+            container: document.getElementById('msg-container'),
+            empty: document.getElementById('empty-state'),
+            globalBtn: document.getElementById('copy-global-btn'),
+            roomLabel: document.getElementById('room-id'),
             audio: document.getElementById('ding-sound')
         };
 
         // 初始化
         function init() {
-            // 1. 生成二维码链接 (带 mqtt=1 参数)
+            // 显示房间号
+            els.roomLabel.innerText = state.roomId;
+
+            // 1. 本地生成二维码 (无网络依赖)
             const link = `${MOBILE_URL}?room=${state.roomId}&mqtt=1`;
-            els.qr.src = `https://api.qrserver.com/v1/create-qr-code/?size=200x200&margin=0&data=${encodeURIComponent(link)}`;
+            els.qrTarget.innerHTML = ''; // 清空
+            new QRCode(els.qrTarget, {
+                text: link,
+                width: 256,
+                height: 256,
+                colorDark : "#000000",
+                colorLight : "#ffffff",
+                correctLevel : QRCode.CorrectLevel.H
+            });
             
             // 2. 连接 MQTT
             connectMQTT();
@@ -210,91 +452,132 @@
 
             state.client.onConnectionLost = (obj) => {
                 console.log("连接断开:", obj.errorMessage);
-                updateStatus('error', '连接断开，正在重连...');
+                updateStatus('error', '连接断开');
                 setTimeout(connectMQTT, 2000);
             };
 
             state.client.onMessageArrived = (msg) => {
                 const text = msg.payloadString;
-                handleNewMessage(text);
+                addMessageCard(text);
             };
 
             state.client.connect({
                 useSSL: true,
                 keepAliveInterval: 30,
                 onSuccess: () => {
-                    updateStatus('success', '云端已连接，请扫码');
-                    els.qr.style.opacity = '1';
+                    updateStatus('success', '云端已连接');
+                    // 二维码淡入效果
+                    const qrCanvas = els.qrTarget.querySelector('canvas') || els.qrTarget.querySelector('img');
+                    if(qrCanvas) qrCanvas.style.opacity = '1';
+                    
                     state.client.subscribe("fx_channel/" + state.roomId);
                 },
                 onFailure: (e) => {
-                    updateStatus('error', '连接失败: ' + e.errorMessage);
+                    updateStatus('error', '连接失败');
                     setTimeout(connectMQTT, 5000);
                 }
             });
         }
 
-        function handleNewMessage(text) {
+        function addMessageCard(text) {
             state.lastMsg = text;
-            
-            // 1. 播放声音
             els.audio.play().catch(()=>{});
 
-            // 2. 更新 UI (清空旧提示，插入新消息)
-            const isFirst = els.list.innerHTML.includes('暂无消息');
-            if(isFirst) els.list.innerHTML = '';
+            // 移除空状态
+            if(els.empty) els.empty.style.display = 'none';
 
-            const msgNode = document.createElement('div');
-            msgNode.className = 'latest-msg';
-            msgNode.innerHTML = `
-                <div class="msg-label">NEW MESSAGE</div>
-                <div class="msg-content">${text}</div>
-            `;
+            // 移除旧消息的 latest 样式
+            const oldLatest = document.querySelector('.msg-card.latest');
+            if(oldLatest) oldLatest.classList.remove('latest');
+
+            // 创建新卡片
+            const card = document.createElement('div');
+            card.className = 'msg-card latest';
+            // 绑定点击事件：全卡片点击复制
+            card.onclick = function() { copyText(this, text); };
             
-            // 把旧消息变小
-            const oldMsgs = els.list.querySelectorAll('.latest-msg');
-            oldMsgs.forEach(node => {
-                node.className = 'history';
-                node.innerHTML = node.querySelector('.msg-content').innerHTML;
-            });
+            const timeStr = new Date().toLocaleTimeString('zh-CN', {hour12:false});
+            
+            card.innerHTML = `
+                <div class="msg-header">
+                    <span class="msg-tag">NEW</span>
+                    <span class="msg-time">${timeStr}</span>
+                </div>
+                <div class="msg-body">${escapeHtml(text)}</div>
+                <div class="click-hint">
+                    <svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                    点此复制
+                </div>
+            `;
 
-            els.list.prepend(msgNode);
+            // 插入到最前面
+            els.container.insertBefore(card, els.container.firstChild);
 
-            // 3. 尝试自动复制
+            // 自动复制
             copyLatest(true);
         }
 
         function copyLatest(isAuto = false) {
             if(!state.lastMsg) return;
-            
-            navigator.clipboard.writeText(state.lastMsg).then(() => {
-                els.btn.innerText = "✅ 已复制";
-                els.btn.classList.add('copied');
-                if(!isAuto) {
-                    // 手动点击时才震动反馈
-                    if(navigator.vibrate) navigator.vibrate(50);
+            // 如果是自动复制，我们使用全局按钮做反馈
+            copyText(els.globalBtn, state.lastMsg, isAuto);
+        }
+
+        function copyText(element, text, isAuto = false) {
+            navigator.clipboard.writeText(text).then(() => {
+                // 视觉反馈逻辑
+                
+                // 1. 如果是点击卡片
+                if (element.classList.contains('msg-card')) {
+                    element.classList.add('flash-active');
+                    const hint = element.querySelector('.click-hint');
+                    if(hint) hint.innerHTML = '✅ 已复制';
+                    
+                    setTimeout(() => {
+                        element.classList.remove('flash-active');
+                        if(hint) hint.innerHTML = '<svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg> 点此复制';
+                    }, 800);
+                } 
+                // 2. 如果是点击全局按钮
+                else {
+                    const originalHTML = element.innerHTML;
+                    element.innerHTML = '<span>✅ 已复制成功</span>';
+                    element.classList.add('copied');
+                    
+                    if(!isAuto && navigator.vibrate) navigator.vibrate(50);
+
+                    setTimeout(() => {
+                        element.innerHTML = originalHTML;
+                        element.classList.remove('copied');
+                    }, 2000);
                 }
-                setTimeout(() => {
-                    els.btn.innerText = "📋 一键复制";
-                    els.btn.classList.remove('copied');
-                }, 2000);
-            }).catch(() => {
-                if(!isAuto) alert('复制失败，请手动选择文字');
             });
+        }
+        
+        function clearHistory() {
+            if(confirm('确定要清空所有历史消息吗？')) {
+                els.container.innerHTML = '';
+                els.container.appendChild(els.empty);
+                els.empty.style.display = 'flex';
+                state.lastMsg = '';
+            }
         }
 
         function updateStatus(type, text) {
-            els.status.innerText = text;
+            els.statusText.innerText = text;
+            els.badge.className = 'status-badge'; // reset
             if(type === 'success') {
-                els.dot.style.background = '#07c160';
-                els.status.style.color = '#07c160';
-            } else if(type === 'error') {
-                els.dot.style.background = '#ff4d4f';
-                els.status.style.color = '#ff4d4f';
-                els.qr.style.opacity = '0.3';
-            } else {
-                els.dot.style.background = '#ccc';
+                els.badge.classList.add('connected');
             }
+        }
+        
+        function escapeHtml(text) {
+            if (!text) return text;
+            return text.replace(/&/g, "&amp;")
+                       .replace(/</g, "&lt;")
+                       .replace(/>/g, "&gt;")
+                       .replace(/"/g, "&quot;")
+                       .replace(/'/g, "&#039;");
         }
 
         // 启动
