@@ -4,66 +4,148 @@
     <meta charset="UTF-8">
     <title>飞象助手安装</title>
     <style>
-        body { font-family: sans-serif; text-align: center; padding: 50px; background: #f5f7fa; }
-        .card { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.1); max-width: 600px; margin: 0 auto; }
-        h1 { color: #333; margin-bottom: 30px; }
-        
-        /* 书签按钮样式 */
+        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; text-align: center; padding: 50px; background: #f5f7fa; color: #333; }
+        .card { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); max-width: 600px; margin: 0 auto; border: 1px solid #eee; }
+        h1 { margin-bottom: 30px; font-size: 24px; }
         .bookmark-btn {
             display: inline-block;
             background: #0071fd;
             color: white;
-            padding: 15px 30px;
+            padding: 16px 32px;
             border-radius: 50px;
             text-decoration: none;
-            font-weight: bold;
+            font-weight: 600;
             font-size: 18px;
-            box-shadow: 0 4px 12px rgba(0,113,253,0.3);
-            cursor: move; /* 鼠标变成拖动状态 */
-            margin-bottom: 30px;
-            border: 2px dashed rgba(255,255,255,0.5);
+            box-shadow: 0 4px 15px rgba(0,113,253,0.3);
+            cursor: grab;
+            margin-bottom: 20px;
+            transition: transform 0.2s;
         }
-        .bookmark-btn:hover { background: #005bc4; transform: translateY(-2px); }
-
-        .step { color: #666; margin-bottom: 10px; font-size: 16px; }
-        .arrow { font-size: 30px; color: #ccc; margin: 10px 0; }
-        
-        .code-box {
-            margin-top: 40px;
-            padding: 15px;
-            background: #eee;
-            border-radius: 8px;
-            font-family: monospace;
-            font-size: 12px;
-            color: #666;
-            word-break: break-all;
-            text-align: left;
-            display: none; /* 默认隐藏源码 */
-        }
+        .bookmark-btn:active { cursor: grabbing; transform: scale(0.98); }
+        .step { color: #666; font-size: 16px; margin: 10px 0; }
+        .arrow { font-size: 24px; color: #ccc; margin: 15px 0; }
+        kbd { background: #eee; border-radius: 4px; padding: 2px 6px; font-size: 12px; border: 1px solid #ddd; font-family: monospace; }
     </style>
 </head>
 <body>
 
-    <div class="card">
-        <h1>🛠️ 飞象跨屏助手安装</h1>
-        
-        <div class="step">请将下面的蓝色按钮</div>
-        <div class="arrow">👇</div>
-        <div class="step">拖拽到浏览器的 <b>书签栏(收藏夹)</b></div>
-        
-        <br>
-        
-        <!-- 这里是核心：href 里放的就是那个 javascript: 代码 -->
-        <a href="javascript:(function(){var u='https://xiaolu-ai.github.io/wailiantalk/mobile.html',k='Mk5nC300w1sl179427027p34986797',r='fx_'+Math.random().toString(36).substr(2,5),l=u+'?room='+r;if(document.getElementById('fx-box'))return alert('已运行');var d=document.createElement('div');d.id='fx-box';d.style.cssText='position:fixed;top:20px;right:20px;z-index:2147483647;width:160px;background:#fff;padding:15px;border-radius:10px;box-shadow:0 0 20px rgba(0,0,0,0.2);text-align:center;font-family:sans-serif;border:1px solid #eee';d.innerHTML='<div style=\'font-size:20px;cursor:pointer;position:absolute;right:10px;top:5px;color:#999\' onclick=\'this.parentNode.remove()\'>×</div><img src=\'https://api.qrserver.com/v1/create-qr-code/?size=130x130&data='+encodeURIComponent(l)+'\' style=\'width:130px;margin-bottom:10px\'><div id=\'fx-msg\' style=\'color:#666;font-size:12px;margin:10px 0;word-break:break-all;background:#f9f9f9;padding:5px\'>等待扫码...</div><button style=\'background:#0071fd;color:#fff;border:none;padding:8px 15px;border-radius:5px;cursor:pointer;width:100%\' onclick=\'navigator.clipboard.writeText(document.getElementById(\'fx-msg\').innerText.replace(\'收到:\',\'\')).then(()=>alert(\'已复制\'))\'>复制内容</button>';document.body.appendChild(d);var w=new WebSocket('wss://free.blr2.piesocket.com/v3/'+r+'?api_key='+k+'&notify_self=0');w.onopen=function(){document.getElementById('fx-msg').innerText='🟢 扫码连接成功'};w.onmessage=function(e){try{var t=JSON.parse(e.data).text;if(t){document.getElementById('fx-msg').innerText=t;document.getElementById('fx-msg').style.color='#0071fd';document.getElementById('fx-msg').style.fontWeight='bold';var a=document.activeElement;if(a&&(a.tagName=='INPUT'||a.tagName=='TEXTAREA'))a.value=t,a.dispatchEvent(new Event('input',{bubbles:!0}));}}catch(z){}}})();" class="bookmark-btn" onclick="alert('请不要点击，而是拖拽到书签栏哦！');return false;">
-            🚀 飞象云输入
-        </a>
+<div class="card">
+    <h1>🛠️ 飞象跨屏助手安装 (修复版)</h1>
+    
+    <div class="step">请将下方的蓝色按钮</div>
+    <div class="arrow">👇</div>
+    <div class="step">拖拽到浏览器的 <b>书签栏 (收藏夹)</b></div>
+    
+    <br>
 
-        <br><br>
-        <div style="font-size:12px; color:#999;">
-            安装后，在即梦/百度等任意网页点击书签即可使用<br>
-            如未显示书签栏，请按 <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd>
-        </div>
+    <!-- 
+      核心修复点：
+      1. 增加了 JSON.parse 的容错。
+      2. 增加了 document.activeElement 的判空保护。
+      3. 增加了 navigator.clipboard 的 fallback 机制。
+      4. 即使自动填入失败，也会强行把文字显示在浮窗上，确保用户能看到。
+    -->
+    <a href="javascript:(function(){
+        /* 配置 */
+        var HOST='https://xiaolu-ai.github.io/wailiantalk/mobile.html';
+        var KEY='Mk5nC300w1sl179427027p34986797';
+        var CLUSTER='free.blr2.piesocket.com';
+        
+        if(document.getElementById('fx-box')) return alert('插件已在运行');
+        
+        var rid = 'fx_' + Math.random().toString(36).substr(2,5);
+        var url = HOST + '?room=' + rid;
+        
+        /* UI */
+        var box = document.createElement('div');
+        box.id = 'fx-box';
+        box.style.cssText = 'position:fixed;top:20px;right:20px;z-index:2147483647;width:180px;background:white;padding:15px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.15);text-align:center;font-family:sans-serif;border:1px solid #eee';
+        
+        var close = document.createElement('div');
+        close.innerHTML = '×';
+        close.style.cssText = 'position:absolute;right:10px;top:5px;cursor:pointer;font-size:20px;color:#999;width:20px;height:20px;line-height:20px;';
+        close.onclick = function(){ ws.close(); box.remove(); };
+        
+        var img = document.createElement('img');
+        img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=140x140&margin=0&data=' + encodeURIComponent(url);
+        img.style.cssText = 'width:140px;height:140px;display:block;margin:0 auto 10px;background:#f5f5f5';
+        
+        var msg = document.createElement('div');
+        msg.id = 'fx-msg';
+        msg.innerText = '等待手机连接...';
+        msg.style.cssText = 'color:#666;font-size:13px;margin-bottom:10px;padding:8px;background:#f9f9f9;border-radius:4px;word-break:break-all;min-height:20px;line-height:1.4;';
+        
+        var btn = document.createElement('button');
+        btn.innerText = '复制内容';
+        btn.style.cssText = 'background:#0071fd;color:white;border:none;padding:10px;border-radius:6px;cursor:pointer;width:100%;font-size:14px;font-weight:bold;';
+        btn.onclick = function(){
+            var txt = msg.getAttribute('data-text');
+            if(!txt) return alert('暂无内容');
+            navigator.clipboard.writeText(txt).then(function(){
+                var old = btn.innerText;
+                btn.innerText = '✅ 已复制';
+                btn.style.background = '#07c160';
+                setTimeout(function(){ btn.innerText = old; btn.style.background = '#0071fd'; }, 1000);
+            }).catch(function(){
+                prompt('请手动复制:', txt);
+            });
+        };
+        
+        box.appendChild(close);
+        box.appendChild(img);
+        box.appendChild(msg);
+        box.appendChild(btn);
+        document.body.appendChild(box);
+        
+        /* WebSocket */
+        var ws = new WebSocket('wss://' + CLUSTER + '/v3/' + rid + '?api_key=' + KEY + '&notify_self=0');
+        
+        ws.onopen = function(){
+            msg.innerText = '🟢 扫码连接成功';
+            msg.style.color = 'green';
+        };
+        
+        ws.onmessage = function(e){
+            try {
+                var d = JSON.parse(e.data);
+                if(d.text){
+                    // 1. 显示文字
+                    msg.innerText = d.text;
+                    msg.setAttribute('data-text', d.text);
+                    msg.style.color = '#333';
+                    msg.style.fontWeight = 'bold';
+                    
+                    // 2. 尝试自动填入
+                    var el = document.activeElement;
+                    if(el && (el.tagName == 'INPUT' || el.tagName == 'TEXTAREA')){
+                        el.value = d.text;
+                        el.dispatchEvent(new Event('input', {bubbles:true}));
+                        msg.style.border = '1px solid #07c160';
+                        setTimeout(function(){ msg.style.border = 'none'; }, 500);
+                    }
+                    
+                    // 3. 尝试自动复制
+                    navigator.clipboard.writeText(d.text).catch(function(){});
+                }
+            } catch(err){
+                console.error(err);
+            }
+        };
+        
+        ws.onerror = function(){
+            msg.innerText = '❌ 网络连接错误';
+            msg.style.color = 'red';
+        };
+        
+    })()" class="bookmark-btn" onclick="alert('请拖拽我到书签栏，不要直接点击哦！');return false;">
+        🚀 飞象云输入 (Fix)
+    </a>
+
+    <br><br>
+    <div style="font-size:12px; color:#999;">
+        提示：如果没看到书签栏，请按 <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd> (Mac按 <kbd>Cmd</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd>)
     </div>
+</div>
 
 </body>
 </html>
