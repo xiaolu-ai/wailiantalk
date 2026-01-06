@@ -2,11 +2,10 @@
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
-    <title>飞象助手安装</title>
+    <title>飞象助手安装 (MQTT版)</title>
     <style>
-        body { font-family: -apple-system, BlinkMacSystemFont, sans-serif; text-align: center; padding: 50px; background: #f5f7fa; color: #333; }
-        .card { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); max-width: 600px; margin: 0 auto; border: 1px solid #eee; }
-        h1 { margin-bottom: 30px; font-size: 24px; }
+        body { font-family: -apple-system, sans-serif; text-align: center; padding: 50px; background: #f5f7fa; }
+        .card { background: white; padding: 40px; border-radius: 20px; box-shadow: 0 10px 30px rgba(0,0,0,0.08); max-width: 600px; margin: 0 auto; }
         .bookmark-btn {
             display: inline-block;
             background: #0071fd;
@@ -19,132 +18,121 @@
             box-shadow: 0 4px 15px rgba(0,113,253,0.3);
             cursor: grab;
             margin-bottom: 20px;
-            transition: transform 0.2s;
         }
-        .bookmark-btn:active { cursor: grabbing; transform: scale(0.98); }
-        .step { color: #666; font-size: 16px; margin: 10px 0; }
-        .arrow { font-size: 24px; color: #ccc; margin: 15px 0; }
-        kbd { background: #eee; border-radius: 4px; padding: 2px 6px; font-size: 12px; border: 1px solid #ddd; font-family: monospace; }
+        .bookmark-btn:active { cursor: grabbing; }
     </style>
 </head>
 <body>
 
 <div class="card">
-    <h1>🛠️ 飞象跨屏助手安装 (修复版)</h1>
-    
-    <div class="step">请将下方的蓝色按钮</div>
-    <div class="arrow">👇</div>
-    <div class="step">拖拽到浏览器的 <b>书签栏 (收藏夹)</b></div>
-    
+    <h1>🚀 飞象跨屏助手 (稳定版)</h1>
+    <p style="color:#666">拖拽下方按钮到书签栏 👇</p>
     <br>
 
     <!-- 
-      核心修复点：
-      1. 增加了 JSON.parse 的容错。
-      2. 增加了 document.activeElement 的判空保护。
-      3. 增加了 navigator.clipboard 的 fallback 机制。
-      4. 即使自动填入失败，也会强行把文字显示在浮窗上，确保用户能看到。
+      核心改动：
+      1. 引入了 Paho MQTT 库 (通过 CDN 动态加载)，解决原生 WebSocket 不稳定的问题。
+      2. 使用 broker.emqx.io 公共服务器，速度快，支持 WSS。
     -->
     <a href="javascript:(function(){
-        /* 配置 */
-        var HOST='https://xiaolu-ai.github.io/wailiantalk/mobile.html';
-        var KEY='Mk5nC300w1sl179427027p34986797';
-        var CLUSTER='free.blr2.piesocket.com';
-        
-        if(document.getElementById('fx-box')) return alert('插件已在运行');
-        
-        var rid = 'fx_' + Math.random().toString(36).substr(2,5);
-        var url = HOST + '?room=' + rid;
-        
-        /* UI */
-        var box = document.createElement('div');
-        box.id = 'fx-box';
-        box.style.cssText = 'position:fixed;top:20px;right:20px;z-index:2147483647;width:180px;background:white;padding:15px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.15);text-align:center;font-family:sans-serif;border:1px solid #eee';
-        
-        var close = document.createElement('div');
-        close.innerHTML = '×';
-        close.style.cssText = 'position:absolute;right:10px;top:5px;cursor:pointer;font-size:20px;color:#999;width:20px;height:20px;line-height:20px;';
-        close.onclick = function(){ ws.close(); box.remove(); };
-        
-        var img = document.createElement('img');
-        img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=140x140&margin=0&data=' + encodeURIComponent(url);
-        img.style.cssText = 'width:140px;height:140px;display:block;margin:0 auto 10px;background:#f5f5f5';
-        
-        var msg = document.createElement('div');
-        msg.id = 'fx-msg';
-        msg.innerText = '等待手机连接...';
-        msg.style.cssText = 'color:#666;font-size:13px;margin-bottom:10px;padding:8px;background:#f9f9f9;border-radius:4px;word-break:break-all;min-height:20px;line-height:1.4;';
-        
-        var btn = document.createElement('button');
-        btn.innerText = '复制内容';
-        btn.style.cssText = 'background:#0071fd;color:white;border:none;padding:10px;border-radius:6px;cursor:pointer;width:100%;font-size:14px;font-weight:bold;';
-        btn.onclick = function(){
-            var txt = msg.getAttribute('data-text');
-            if(!txt) return alert('暂无内容');
-            navigator.clipboard.writeText(txt).then(function(){
-                var old = btn.innerText;
-                btn.innerText = '✅ 已复制';
-                btn.style.background = '#07c160';
-                setTimeout(function(){ btn.innerText = old; btn.style.background = '#0071fd'; }, 1000);
-            }).catch(function(){
-                prompt('请手动复制:', txt);
-            });
-        };
-        
-        box.appendChild(close);
-        box.appendChild(img);
-        box.appendChild(msg);
-        box.appendChild(btn);
-        document.body.appendChild(box);
-        
-        /* WebSocket */
-        var ws = new WebSocket('wss://' + CLUSTER + '/v3/' + rid + '?api_key=' + KEY + '&notify_self=0');
-        
-        ws.onopen = function(){
-            msg.innerText = '🟢 扫码连接成功';
-            msg.style.color = 'green';
-        };
-        
-        ws.onmessage = function(e){
-            try {
-                var d = JSON.parse(e.data);
-                if(d.text){
-                    // 1. 显示文字
-                    msg.innerText = d.text;
-                    msg.setAttribute('data-text', d.text);
-                    msg.style.color = '#333';
-                    msg.style.fontWeight = 'bold';
-                    
-                    // 2. 尝试自动填入
-                    var el = document.activeElement;
-                    if(el && (el.tagName == 'INPUT' || el.tagName == 'TEXTAREA')){
-                        el.value = d.text;
-                        el.dispatchEvent(new Event('input', {bubbles:true}));
-                        msg.style.border = '1px solid #07c160';
-                        setTimeout(function(){ msg.style.border = 'none'; }, 500);
-                    }
-                    
-                    // 3. 尝试自动复制
-                    navigator.clipboard.writeText(d.text).catch(function(){});
-                }
-            } catch(err){
-                console.error(err);
-            }
-        };
-        
-        ws.onerror = function(){
-            msg.innerText = '❌ 网络连接错误';
-            msg.style.color = 'red';
-        };
-        
-    })()" class="bookmark-btn" onclick="alert('请拖拽我到书签栏，不要直接点击哦！');return false;">
-        🚀 飞象云输入 (Fix)
-    </a>
+        /* 1. 动态加载 MQTT 库 */
+        if(!window.Paho){
+            var s = document.createElement('script');
+            s.src = 'https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js';
+            s.onload = init;
+            document.body.appendChild(s);
+        } else { init(); }
 
-    <br><br>
-    <div style="font-size:12px; color:#999;">
-        提示：如果没看到书签栏，请按 <kbd>Ctrl</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd> (Mac按 <kbd>Cmd</kbd> + <kbd>Shift</kbd> + <kbd>B</kbd>)
-    </div>
+        function init(){
+            /* 配置 */
+            var HOST = 'https://xiaolu-ai.github.io/wailiantalk/mobile.html';
+            var MQTT_BROKER = 'broker.emqx.io';
+            var MQTT_PORT = 8084; // WSS 端口
+            var RID = 'fx_' + Math.random().toString(36).substr(2,6);
+            
+            if(document.getElementById('fx-box')) return alert('已运行');
+
+            /* UI */
+            var box = document.createElement('div');
+            box.id = 'fx-box';
+            box.style.cssText = 'position:fixed;top:20px;right:20px;z-index:2147483647;width:180px;background:white;padding:15px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.2);text-align:center;font-family:sans-serif;border:1px solid #eee';
+            
+            var msg = document.createElement('div');
+            msg.innerText = '正在连接云端...';
+            msg.style.cssText = 'color:#666;font-size:13px;margin:10px 0;padding:8px;background:#f9f9f9;border-radius:4px;word-break:break-all;';
+
+            var img = document.createElement('img');
+            img.style.cssText = 'width:140px;height:140px;display:block;margin:0 auto;opacity:0.5';
+            
+            var close = document.createElement('div');
+            close.innerHTML = '×';
+            close.style.cssText = 'position:absolute;right:10px;top:5px;cursor:pointer;font-size:20px;color:#999';
+            close.onclick = function(){ client.disconnect(); box.remove(); };
+
+            var btn = document.createElement('button');
+            btn.innerText = '复制';
+            btn.style.cssText = 'background:#0071fd;color:white;border:none;padding:8px 15px;border-radius:6px;cursor:pointer;width:100%;font-size:14px;';
+            btn.onclick = function(){
+                var txt = msg.getAttribute('data-text');
+                if(txt) navigator.clipboard.writeText(txt).then(()=>alert('已复制'));
+            };
+
+            box.appendChild(close);
+            box.appendChild(img);
+            box.appendChild(msg);
+            box.appendChild(btn);
+            document.body.appendChild(box);
+
+            /* MQTT 连接 */
+            var client = new Paho.MQTT.Client(MQTT_BROKER, MQTT_PORT, "client_" + RID);
+            
+            client.onConnectionLost = function(obj) { 
+                msg.innerText = '❌ 连接断开:' + obj.errorMessage; 
+                msg.style.color = 'red';
+            };
+
+            client.onMessageArrived = function(message) {
+                var txt = message.payloadString;
+                console.log("收到MQTT消息:", txt);
+                
+                // UI更新
+                msg.innerText = txt;
+                msg.setAttribute('data-text', txt);
+                msg.style.color = '#333';
+                msg.style.fontWeight = 'bold';
+                
+                // 自动填入
+                var el = document.activeElement;
+                if(el && (el.tagName=='INPUT' || el.tagName=='TEXTAREA')){
+                    el.value = txt;
+                    el.dispatchEvent(new Event('input', {bubbles:true}));
+                }
+                
+                // 自动复制
+                navigator.clipboard.writeText(txt).catch(function(){});
+            };
+
+            client.connect({
+                useSSL: true, // 强制加密，防拦截
+                onSuccess: function() {
+                    msg.innerText = '🟢 云端已连接';
+                    msg.style.color = 'green';
+                    img.style.opacity = '1';
+                    // 生成带 mqtt=1 参数的二维码，通知手机端也用 MQTT
+                    var url = HOST + '?room=' + RID + '&mqtt=1'; 
+                    img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=140x140&margin=0&data=' + encodeURIComponent(url);
+                    
+                    // 订阅频道
+                    client.subscribe("fx_channel/" + RID);
+                },
+                onFailure: function(e) {
+                    msg.innerText = '连接失败:' + e.errorMessage;
+                }
+            });
+        }
+    })()" class="bookmark-btn" onclick="alert('请拖拽到书签栏');return false;">
+        🚀 飞象云输入 (MQTT版)
+    </a>
 </div>
 
 </body>
