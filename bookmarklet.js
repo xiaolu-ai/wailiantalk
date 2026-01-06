@@ -1,107 +1,104 @@
 (function(){
-    // 1. 基础配置
-    var MOBILE_URL = "https://xiaolu-ai.github.io/wailiantalk/mobile.html";
-    var API_KEY = "Mk5nC300w1sl179427027p34986797";
-    var CLUSTER = "free.blr2.piesocket.com";
+    /* 1. 动态加载 MQTT 库 */
+    if(!window.Paho){
+        var s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/paho-mqtt/1.0.1/mqttws31.min.js';
+        s.onload = init;
+        document.body.appendChild(s);
+    } else { init(); }
 
-    // 2. 防重复检查
-    if(document.getElementById("fx-root")){
-        alert("插件正在运行中");
-        return;
-    }
+    function init(){
+        /* 配置 */
+        // ⚠️ 请确保这里是您真实的 GitHub Pages 地址
+        var HOST = 'https://xiaolu-ai.github.io/wailiantalk/mobile.html';
+        var MQTT_BROKER = 'broker.emqx.io';
+        var MQTT_PORT = 8084;
+        var RID = 'fx_' + Math.random().toString(36).substr(2,6);
+        
+        if(document.getElementById('fx-box')) return alert('已运行');
 
-    // 3. 生成连接信息
-    var roomId = "fx_" + Math.random().toString(36).substr(2, 6);
-    var link = MOBILE_URL + "?room=" + roomId;
+        /* UI */
+        var box = document.createElement('div');
+        box.id = 'fx-box';
+        box.style.cssText = 'position:fixed;top:20px;right:20px;z-index:2147483647;width:180px;background:white;padding:15px;border-radius:12px;box-shadow:0 8px 30px rgba(0,0,0,0.2);text-align:center;font-family:sans-serif;border:1px solid #eee';
+        
+        var msg = document.createElement('div');
+        msg.innerText = '正在连接云端...';
+        msg.style.cssText = 'color:#666;font-size:13px;margin:10px 0;padding:8px;background:#f9f9f9;border-radius:4px;word-break:break-all;';
 
-    // 4. 创建 UI
-    var root = document.createElement("div");
-    root.id = "fx-root";
-    root.style.cssText = "position:fixed;top:20px;right:20px;z-index:2147483647;width:200px;background:white;border-radius:12px;box-shadow:0 8px 24px rgba(0,0,0,0.2);font-family:sans-serif;text-align:center;border:1px solid #ddd;overflow:hidden;";
+        var img = document.createElement('img');
+        img.style.cssText = 'width:140px;height:140px;display:block;margin:0 auto;opacity:0.5';
+        
+        var close = document.createElement('div');
+        close.innerHTML = '×';
+        close.style.cssText = 'position:absolute;right:10px;top:5px;cursor:pointer;font-size:20px;color:#999';
+        close.onclick = function(){ 
+            if(window.fxClient) window.fxClient.disconnect(); 
+            box.remove(); 
+        };
 
-    // 标题栏
-    var header = document.createElement("div");
-    header.style.cssText = "background:#f5f5f7;padding:10px;font-size:14px;color:#333;font-weight:bold;display:flex;justify-content:space-between;align-items:center;";
-    header.innerHTML = '<span>📱 扫码连接</span><span style="cursor:pointer;font-size:20px;" onclick="document.getElementById(\'fx-root\').remove()">×</span>';
+        var btn = document.createElement('button');
+        btn.innerText = '复制';
+        btn.style.cssText = 'background:#0071fd;color:white;border:none;padding:8px 15px;border-radius:6px;cursor:pointer;width:100%;font-size:14px;';
+        btn.onclick = function(){
+            var txt = msg.getAttribute('data-text');
+            if(txt) navigator.clipboard.writeText(txt).then(()=>alert('已复制'));
+        };
 
-    // 二维码
-    var qrBox = document.createElement("div");
-    qrBox.style.padding = "15px";
-    var img = document.createElement("img");
-    img.src = "https://api.qrserver.com/v1/create-qr-code/?size=150x150&margin=0&data=" + encodeURIComponent(link);
-    img.style.cssText = "width:150px;height:150px;display:block;margin:0 auto;";
-    qrBox.appendChild(img);
+        box.appendChild(close);
+        box.appendChild(img);
+        box.appendChild(msg);
+        box.appendChild(btn);
+        document.body.appendChild(box);
 
-    // 状态文字
-    var status = document.createElement("div");
-    status.id = "fx-status";
-    status.innerText = "等待手机连接...";
-    status.style.cssText = "padding:10px;background:#fafafa;color:#666;font-size:13px;border-top:1px solid #eee;";
+        /* MQTT 连接 */
+        var client = new Paho.MQTT.Client(MQTT_BROKER, MQTT_PORT, "client_" + RID);
+        window.fxClient = client; // 暴露给全局以便关闭
+        
+        client.onConnectionLost = function(obj) { 
+            msg.innerText = '❌ 连接断开:' + obj.errorMessage; 
+            msg.style.color = 'red';
+        };
 
-    // 复制按钮
-    var btn = document.createElement("button");
-    btn.innerText = "复制内容";
-    btn.style.cssText = "width:100%;padding:12px;background:#0071fd;color:white;border:none;cursor:pointer;font-size:14px;font-weight:bold;";
-    btn.onclick = function(){
-        var text = status.getAttribute("data-raw");
-        if(text){
-            navigator.clipboard.writeText(text).then(function(){
-                btn.innerText = "已复制！";
-                setTimeout(function(){ btn.innerText = "复制内容"; }, 1000);
-            }).catch(function(){
-                prompt("请手动复制：", text);
-            });
-        } else {
-            alert("暂无内容可复制");
-        }
-    };
-
-    root.appendChild(header);
-    root.appendChild(qrBox);
-    root.appendChild(status);
-    root.appendChild(btn);
-    document.body.appendChild(root);
-
-    // 5. 连接 WebSocket
-    console.log("正在连接 WebSocket:", roomId);
-    var ws = new WebSocket("wss://" + CLUSTER + "/v3/" + roomId + "?api_key=" + API_KEY + "&notify_self=0");
-
-    ws.onopen = function(){
-        status.innerText = "🟢 服务已连接，请扫码";
-        status.style.color = "green";
-    };
-
-    ws.onmessage = function(e){
-        console.log("收到消息:", e.data);
-        try {
-            var data = JSON.parse(e.data);
-            if(data.text){
-                // 更新 UI
-                status.innerText = "收到: " + data.text;
-                status.setAttribute("data-raw", data.text);
-                status.style.color = "#0071fd";
-                
-                // 尝试自动填入
-                var active = document.activeElement;
-                if(active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.contentEditable === "true")){
-                    // 针对 React/Vue 的特殊处理
-                    var nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
-                    if(active.tagName === "INPUT" && nativeSetter){
-                        nativeSetter.call(active, data.text);
-                    } else {
-                        active.value = data.text;
-                    }
-                    active.dispatchEvent(new Event("input", {bubbles: true}));
-                    status.innerText = "✅ 已自动填入";
+        client.onMessageArrived = function(message) {
+            var txt = message.payloadString;
+            
+            // UI更新
+            msg.innerText = txt;
+            msg.setAttribute('data-text', txt);
+            msg.style.color = '#333';
+            msg.style.fontWeight = 'bold';
+            
+            // 自动填入
+            var el = document.activeElement;
+            if(el && (el.tagName=='INPUT' || el.tagName=='TEXTAREA')){
+                // 尝试 React/Vue 兼容写法
+                var nativeSetter = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
+                if(nativeSetter && el.tagName=='INPUT'){
+                    nativeSetter.call(el, txt);
+                } else {
+                    el.value = txt;
                 }
+                el.dispatchEvent(new Event('input', {bubbles:true}));
             }
-        } catch(err){
-            console.error(err);
-        }
-    };
+            
+            // 自动复制
+            navigator.clipboard.writeText(txt).catch(function(){});
+        };
 
-    ws.onerror = function(){
-        status.innerText = "❌ 连接失败，请检查网络";
-        status.style.color = "red";
-    };
+        client.connect({
+            useSSL: true,
+            onSuccess: function() {
+                msg.innerText = '🟢 云端已连接';
+                msg.style.color = 'green';
+                img.style.opacity = '1';
+                var url = HOST + '?room=' + RID + '&mqtt=1'; 
+                img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=140x140&margin=0&data=' + encodeURIComponent(url);
+                client.subscribe("fx_channel/" + RID);
+            },
+            onFailure: function(e) {
+                msg.innerText = '连接失败:' + e.errorMessage;
+            }
+        });
+    }
 })();
